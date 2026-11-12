@@ -6,7 +6,7 @@ export const generateBrief = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const r = getRequest(data.id);
     if (!r) return { text: null, error: "Request not found" };
-    const apiKey = process.env.LOVABLE_API_KEY;
+    const apiKey = process.env["LOVABLE_API_KEY"];
     if (!apiKey) return { text: null, error: "AI is not configured" };
     const [{ createOpenAI }, { streamText }, { createLovableAiGatewayRunIdFetch }] = await Promise.all([
       import("@ai-sdk/openai"),
