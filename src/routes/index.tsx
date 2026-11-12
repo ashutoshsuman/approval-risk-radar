@@ -24,8 +24,8 @@ function RiskQueue() {
   const flagged = queue.filter((q) => q.risk.moneyAtRisk > 0).length;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-end justify-between">
+    <div className="flex h-[calc(100vh-7.5rem)] min-h-[26rem] flex-col gap-6">
+      <div className="flex shrink-0 items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Risk queue</h1>
           <p className="text-sm text-muted-foreground">Pending requests sorted by money at risk. Click a row for the approver brief.</p>
@@ -35,20 +35,20 @@ function RiskQueue() {
           <Stat label="Requests at risk" value={`${flagged} of ${queue.length}`} />
         </div>
       </div>
-      <div className="overflow-hidden rounded-md border bg-card">
+      <div className="min-h-0 flex-1 overflow-auto rounded-md border bg-card">
         <table className="w-full text-sm">
-          <thead className="bg-muted/60 text-left text-xs uppercase tracking-wide text-muted-foreground">
+          <thead className="text-left text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
               {["Request", "Department", "Approver", "Stage", "Pending", "Amount", "Money at risk", "Why"].map((h, i) => (
-                <th key={h} className={`px-4 py-3 font-medium ${i === 4 || i === 5 || i === 6 ? "text-right" : ""}`}>{h}</th>
+                <th key={h} className={`sticky top-0 bg-muted px-4 py-3 font-medium ${i === 0 ? "left-0 z-30 border-r" : "z-10"} ${i === 4 || i === 5 || i === 6 ? "text-right" : ""}`}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {queue.map(({ request: r, risk }) => (
               <tr key={r.id} onClick={() => navigate({ to: "/request/$id", params: { id: r.id } })}
-                className="cursor-pointer border-t hover:bg-accent/50">
-                <td className="px-4 py-3">
+                className="group cursor-pointer border-t hover:bg-accent/50">
+                <td className="sticky left-0 z-10 border-r bg-card px-4 py-3 group-hover:bg-accent/50">
                   <div className="font-medium">{r.item}</div>
                   <div className="font-mono text-xs text-muted-foreground">{r.id} · {r.requester}{decisions[r.id] ? ` · ${decisions[r.id]}` : ""}</div>
                 </td>
@@ -68,7 +68,7 @@ function RiskQueue() {
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-muted-foreground">Money at risk = vendor price above the approved amount, plus the full amount when the quote expires within 7 days or a renewal lapses within 14 days.</p>
+      <p className="shrink-0 text-xs text-muted-foreground">Money at risk = vendor price above the approved amount, plus the full amount when the quote expires within 7 days or a renewal lapses within 14 days.</p>
     </div>
   );
 }
