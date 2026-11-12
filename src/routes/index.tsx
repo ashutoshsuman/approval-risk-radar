@@ -40,7 +40,7 @@ function RiskQueue() {
           <thead className="text-left text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
               {["Request", "Department", "Approver", "Stage", "Pending", "Amount", "Money at risk", "Why"].map((h, i) => (
-                <th key={h} className={`sticky top-0 z-10 bg-muted px-4 py-3 font-medium ${i === 4 || i === 5 || i === 6 ? "text-right" : ""}`}>{h}</th>
+                <th key={h} className={`sticky top-0 bg-muted px-4 py-3 font-medium ${i === 0 ? "left-0 z-30 border-r" : "z-10"} ${i === 4 || i === 5 || i === 6 ? "text-right" : ""}`}>{h}</th>
               ))}
             </tr>
           </thead>
