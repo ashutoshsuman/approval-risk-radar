@@ -1,23 +1,83 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { requests } from "@/lib/requests";
+import { formatINR, riskQueue } from "@/lib/risk";
+import { useDecisions } from "@/lib/decisions";
+import { ReasonChip } from "@/components/ReasonChip";
 
-// The home route ships no og:image, so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
 export const Route = createFileRoute("/")({
-  component: Index,
+  head: () => ({
+    meta: [
+      { title: "Risk queue · Approval Risk Radar" },
+      { name: "description", content: "Pending purchase requests ranked by money at risk." },
+      { property: "og:title", content: "Risk queue · Approval Risk Radar" },
+      { property: "og:description", content: "Pending purchase requests ranked by money at risk." },
+    ],
+  }),
+  component: RiskQueue,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
-function Index() {
+function RiskQueue() {
+  const navigate = useNavigate();
+  const decisions = useDecisions();
+  const queue = riskQueue(requests);
+  const total = queue.reduce((s, q) => s + q.risk.moneyAtRisk, 0);
+  const flagged = queue.filter((q) => q.risk.moneyAtRisk > 0).length;
+
   return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
+    <div className="space-y-6">
+      <div className="flex items-end justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Risk queue</h1>
+          <p className="text-sm text-muted-foreground">Pending requests sorted by money at risk. Click a row for the approver brief.</p>
+        </div>
+        <div className="flex gap-3">
+          <Stat label="Money at risk" value={formatINR(total)} />
+          <Stat label="Requests at risk" value={`${flagged} of ${queue.length}`} />
+        </div>
+      </div>
+      <div className="overflow-hidden rounded-md border bg-card">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/60 text-left text-xs uppercase tracking-wide text-muted-foreground">
+            <tr>
+              {["Request", "Department", "Approver", "Stage", "Pending", "Amount", "Money at risk", "Why"].map((h, i) => (
+                <th key={h} className={`px-4 py-3 font-medium ${i === 4 || i === 5 || i === 6 ? "text-right" : ""}`}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {queue.map(({ request: r, risk }) => (
+              <tr key={r.id} onClick={() => navigate({ to: "/request/$id", params: { id: r.id } })}
+                className="cursor-pointer border-t hover:bg-accent/50">
+                <td className="px-4 py-3">
+                  <div className="font-medium">{r.item}</div>
+                  <div className="font-mono text-xs text-muted-foreground">{r.id} · {r.requester}{decisions[r.id] ? ` · ${decisions[r.id]}` : ""}</div>
+                </td>
+                <td className="px-4 py-3">{r.department}</td>
+                <td className="px-4 py-3"><div>{r.approver.name}</div><div className="text-xs text-muted-foreground">{r.approver.role}</div></td>
+                <td className="px-4 py-3">{r.stage}</td>
+                <td className="px-4 py-3 text-right font-mono">{r.daysPending}d</td>
+                <td className="px-4 py-3 text-right font-mono">{formatINR(r.amount)}</td>
+                <td className={`px-4 py-3 text-right font-mono font-medium ${risk.moneyAtRisk ? "text-destructive" : "text-muted-foreground"}`}>{formatINR(risk.moneyAtRisk)}</td>
+                <td className="px-4 py-3">
+                  <div className="flex flex-wrap gap-1">
+                    {risk.reasons.length ? risk.reasons.map((t) => <ReasonChip key={t} text={t} />) : <span className="text-xs text-muted-foreground">No risk detected</span>}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-xs text-muted-foreground">Money at risk = vendor price above the approved amount, plus the full amount when the quote expires within 7 days or a renewal lapses within 14 days.</p>
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border bg-card px-4 py-2">
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="font-mono text-lg font-medium">{value}</div>
     </div>
   );
 }
