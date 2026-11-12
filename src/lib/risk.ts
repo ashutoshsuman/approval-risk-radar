@@ -7,7 +7,7 @@ export const QUICK_REAPPROVE_MAX_PCT = 10;
 
 export function daysUntil(iso: string, now: Date = new Date()) {
   const start = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const [y, m, d] = iso.split("-").map(Number);
+  const [y = 0, m = 1, d = 1] = iso.split("-").map(Number);
   return Math.round((new Date(y, m - 1, d).getTime() - start) / DAY);
 }
 
