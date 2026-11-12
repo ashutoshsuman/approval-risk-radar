@@ -24,8 +24,8 @@ function RiskQueue() {
   const flagged = queue.filter((q) => q.risk.moneyAtRisk > 0).length;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-end justify-between">
+    <div className="flex h-[calc(100vh-7.5rem)] min-h-[26rem] flex-col gap-6">
+      <div className="flex shrink-0 items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Risk queue</h1>
           <p className="text-sm text-muted-foreground">Pending requests sorted by money at risk. Click a row for the approver brief.</p>
@@ -35,12 +35,12 @@ function RiskQueue() {
           <Stat label="Requests at risk" value={`${flagged} of ${queue.length}`} />
         </div>
       </div>
-      <div className="overflow-hidden rounded-md border bg-card">
+      <div className="min-h-0 flex-1 overflow-auto rounded-md border bg-card">
         <table className="w-full text-sm">
-          <thead className="bg-muted/60 text-left text-xs uppercase tracking-wide text-muted-foreground">
+          <thead className="text-left text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
               {["Request", "Department", "Approver", "Stage", "Pending", "Amount", "Money at risk", "Why"].map((h, i) => (
-                <th key={h} className={`px-4 py-3 font-medium ${i === 4 || i === 5 || i === 6 ? "text-right" : ""}`}>{h}</th>
+                <th key={h} className={`sticky top-0 z-10 bg-muted px-4 py-3 font-medium ${i === 4 || i === 5 || i === 6 ? "text-right" : ""}`}>{h}</th>
               ))}
             </tr>
           </thead>
