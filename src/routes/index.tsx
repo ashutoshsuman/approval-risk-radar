@@ -68,7 +68,7 @@ function RiskQueue() {
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-muted-foreground">Money at risk = vendor price above the approved amount, plus the full amount when the quote expires within 7 days or a renewal lapses within 14 days.</p>
+      <p className="shrink-0 text-xs text-muted-foreground">Money at risk = vendor price above the approved amount, plus the full amount when the quote expires within 7 days or a renewal lapses within 14 days.</p>
     </div>
   );
 }
