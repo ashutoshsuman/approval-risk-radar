@@ -42,6 +42,9 @@ export function DemoControls() {
         <Button variant="outline" onClick={() => { demo.reset(); setOpen(false); void navigate({ to: "/" }); }}>
           <RotateCcw className="size-4" /> Reset to default data
         </Button>
+        <Button variant="outline" onClick={() => { demo.resetSteps(); setOpen(false); void navigate({ to: "/" }); }}>
+          <RotateCcw className="size-4" /> Reset approval steps
+        </Button>
         {demo.enabled && demo.requests.filter((r) => r.status === "Awaiting re-quote").map((r) => <SimulateQuote key={r.id} request={r} />)}
       </DialogContent>
     </Dialog>

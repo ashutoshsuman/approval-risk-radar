@@ -1,6 +1,7 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useDemo } from "@/lib/demo";
 import { formatINR, GROUP_LABEL, plural, riskQueue } from "@/lib/risk";
+import { READY_FOR_PO } from "@/lib/request-workflow";
 import { useDecisions } from "@/lib/decisions";
 import { ReasonChip } from "@/components/ReasonChip";
 
@@ -22,13 +23,14 @@ function RiskQueue() {
   const navigate = useNavigate();
   const decisions = useDecisions();
   const { requests } = useDemo();
-  const queue = riskQueue(requests);
+  const queue = riskQueue(requests.filter((r) => r.stage !== READY_FOR_PO));
+  const ready = requests.filter((r) => r.stage === READY_FOR_PO);
   const total = queue.reduce((s, q) => s + (q.risk.moneyAtRisk ?? 0), 0);
   const unknown = queue.filter((q) => q.risk.moneyAtRisk === null).length;
   const flagged = queue.filter((q) => q.risk.moneyAtRisk === null || q.risk.moneyAtRisk > 0).length;
 
   return (
-    <div className="flex h-[calc(100vh-7.5rem)] min-h-[26rem] flex-col gap-6">
+    <div className="flex min-h-[calc(100vh-7.5rem)] flex-col gap-6">
       <div className="flex shrink-0 flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Risk queue</h1>
@@ -58,7 +60,7 @@ function RiskQueue() {
                     <div className="font-mono text-xs text-muted-foreground">{r.id} · {r.requester}{r.status ? ` · ${r.status}` : decisions[r.id] ? ` · ${decisions[r.id]}` : ""}</div>
                   </div>
                 </td>
-                <td className="px-4 py-3"><span className={`whitespace-nowrap rounded border px-1.5 py-0.5 text-xs ${risk.group === "expired" ? "border-destructive text-destructive" : "text-muted-foreground"}`}>{GROUP_LABEL[risk.group]}</span></td>
+                <td className="px-4 py-3"><span className={`whitespace-nowrap rounded border px-1.5 py-0.5 text-xs ${risk.group === "expired" ? "border-destructive text-destructive" : "text-muted-foreground"}`}>{risk.group === "quote" && !risk.quoteFlag ? "Service at risk" : GROUP_LABEL[risk.group]}</span></td>
                 <td className="px-4 py-3">{r.department}</td>
                 <td className="px-4 py-3"><div>{r.approver.name}</div><div className="text-xs text-muted-foreground">{r.approver.role}</div></td>
                 <td className="px-4 py-3">{r.stage}</td>
@@ -74,6 +76,14 @@ function RiskQueue() {
           </tbody>
         </table>
       </div>
+      {!!ready.length && <section className="shrink-0 space-y-2">
+        <h2 className="text-sm font-medium">Ready for PO</h2>
+        <ul className="divide-y rounded-md border bg-card text-sm">{ready.map((r) => <li key={r.id}>
+          <Link to="/request/$id" params={{ id: r.id }} className="flex flex-wrap justify-between gap-2 px-4 py-2 hover:bg-muted">
+            <span><span className="font-medium">{r.item}</span> <span className="font-mono text-xs text-muted-foreground">{r.id}</span></span>
+            <span className="font-mono">Approved at {formatINR(r.approvedAt ?? r.latestVendorPrice)}</span>
+          </Link></li>)}</ul>
+      </section>}
       <p className="shrink-0 text-xs text-muted-foreground">Money at risk = extra cost so far (vendor price above approved, confirmed) + risk if it waits (10% of the latest price when the quote expires within 7 days, estimated).</p>
     </div>
   );

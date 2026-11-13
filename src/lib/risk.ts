@@ -38,7 +38,7 @@ export const plural = (n: number) => `${n} day${Math.abs(n) === 1 ? "" : "s"}`;
 export type RiskGroup = "expired" | "quote" | "price" | "other";
 export const GROUP_LABEL: Record<RiskGroup, string> = {
   expired: "Quote expired",
-  quote: "Quote expiring",
+  quote: "Urgent: expiring soon",
   price: "Price above approved",
   other: "No urgent risk",
 };
@@ -53,13 +53,14 @@ export function assessRisk(r: PurchaseRequest, now: Date = new Date()) {
   const reasons: string[] = [];
   if (quoteExpired) reasons.push("Quote expired, re-quote needed");
   else if (quoteFlag) reasons.push(`Quote expires in ${plural(quoteDays)}`);
-  if (renewalFlag && renewalDays !== null) reasons.push(renewalDays < 0 ? "Renewal lapsed" : `Renewal lapses in ${plural(renewalDays)}`);
+  if (renewalFlag && renewalDays !== null) reasons.push("Service at risk", renewalDays < 0 ? "Renewal lapsed" : `Renewal lapses in ${plural(renewalDays)}`);
   if (d.inr > 0) reasons.push(`Vendor price +${formatINR(d.inr)} (${formatDriftPercent(d.pct)})`);
   if (d.dropped) reasons.push("Price dropped");
   const confirmed = d.inr;
   const estimated = quoteFlag ? Math.round(r.latestVendorPrice * REPRICE_ASSUMPTION) : 0;
-  const group: RiskGroup = quoteExpired ? "expired" : quoteFlag ? "quote" : d.inr > 0 ? "price" : "other";
-  return { ...d, quoteDays, renewalDays, quoteExpired, quoteFlag, renewalFlag, reasons, confirmed, estimated, moneyAtRisk: quoteExpired ? null : confirmed + estimated, group };
+  const group: RiskGroup = quoteExpired ? "expired" : quoteFlag || renewalFlag ? "quote" : d.inr > 0 ? "price" : "other";
+  return { ...d, quoteDays, renewalDays, quoteExpired, quoteFlag, renewalFlag, reasons, confirmed, estimated, moneyAtRisk: quoteExpired ? null : confirmed + estimated, group,
+    urgentDays: Math.min(quoteFlag ? quoteDays : Infinity, renewalFlag && renewalDays !== null ? renewalDays : Infinity) };
 }
 
 const ORDER: RiskGroup[] = ["expired", "quote", "price", "other"];
@@ -70,7 +71,8 @@ export function riskQueue(list: PurchaseRequest[], now: Date = new Date()) {
     .sort((a, b) => {
       const g = ORDER.indexOf(a.risk.group) - ORDER.indexOf(b.risk.group);
       if (g) return g;
-      if (a.risk.group === "expired" || a.risk.group === "quote") return a.risk.quoteDays - b.risk.quoteDays;
+      if (a.risk.group === "expired") return a.risk.quoteDays - b.risk.quoteDays;
+      if (a.risk.group === "quote") return a.risk.urgentDays - b.risk.urgentDays;
       if (a.risk.group === "price") return b.risk.confirmed - a.risk.confirmed;
       return 0;
     });

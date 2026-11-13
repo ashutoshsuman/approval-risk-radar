@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useDemo } from "@/lib/demo";
 import { drift, driftAction, formatINR, formatDriftPercent, QUICK_REAPPROVE_LIMIT } from "@/lib/risk";
-import { approvalLabel, canApprove, canSubmitApproval } from "@/lib/request-workflow";
+import { approvalLabel, approvalMessage, canApprove, canSubmitApproval } from "@/lib/request-workflow";
 
 export const Route = createFileRoute("/drift")({
   head: () => ({
@@ -52,7 +52,7 @@ function Drift() {
                 <Button size="sm" className="h-auto min-h-8 whitespace-normal text-left" disabled={action === "quick" ? !canApprove(r) : !canSubmitApproval(r)}
                   onClick={() => {
                     if (action === "quick" ? !canApprove(r) : !canSubmitApproval(r)) return;
-                    const label = action === "quick" ? `Approved at ${formatINR(r.latestVendorPrice)}` : `Sent for full re-approval at ${formatINR(r.latestVendorPrice)}`;
+                    const label = action === "quick" ? approvalMessage(r) : `Sent for full re-approval at ${formatINR(r.latestVendorPrice)}`;
                     if (action === "quick") demo.approveRequest(r.id);
                     else demo.sendForFullApproval(r.id);
                     toast.success(`${r.id}: ${label}`);
