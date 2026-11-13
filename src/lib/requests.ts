@@ -12,6 +12,9 @@ export type PurchaseRequest = {
   renewalDate?: string;
   approvedAmount: number;
   latestVendorPrice: number;
+  status?: "Pending approval" | "Awaiting re-quote" | "Cancelled";
+  approvalHistory?: string[];
+  hasReplacementQuote?: boolean;
 };
 
 export function dateFromToday(n: number, now: Date = new Date()) {

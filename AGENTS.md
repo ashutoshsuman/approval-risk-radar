@@ -31,3 +31,4 @@ use the editor.
 
 - Keep default requests and scenario definitions in one browser-safe data module; demo edits live in a root React provider so all screens share them without server state or persistence.
 - Compute and log demo risk exclusively through the existing pure risk functions; scenario values and edits must never depend on AI output.
+- Keep quote workflow transitions in browser-safe pure functions and request status/history in the demo provider; guard every approval surface so expired or cancelled requests cannot bypass re-quoting.

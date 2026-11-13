@@ -52,7 +52,7 @@ export function assessRisk(r: PurchaseRequest, now: Date = new Date()) {
   const confirmed = d.inr;
   const estimated = quoteFlag ? Math.round(r.latestVendorPrice * REPRICE_ASSUMPTION) : 0;
   const group: RiskGroup = quoteExpired ? "expired" : quoteFlag ? "quote" : d.inr > 0 ? "price" : "other";
-  return { ...d, quoteDays, renewalDays, quoteExpired, quoteFlag, renewalFlag, reasons, confirmed, estimated, moneyAtRisk: confirmed + estimated, group };
+  return { ...d, quoteDays, renewalDays, quoteExpired, quoteFlag, renewalFlag, reasons, confirmed, estimated, moneyAtRisk: quoteExpired ? null : confirmed + estimated, group };
 }
 
 const ORDER: RiskGroup[] = ["expired", "quote", "price", "other"];
