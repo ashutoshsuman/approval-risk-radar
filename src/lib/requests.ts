@@ -49,8 +49,10 @@ export function scenarioRequests(id: ScenarioId, now: Date = new Date()): Purcha
     if (id !== "all" && scenario.id !== id) return [];
     const source = requests[index];
     if (!source) return [];
-    return [{ ...source, amount: 100000, approvedAmount: 100000,
+    const request = { ...source, amount: 100000, approvedAmount: 100000,
       latestVendorPrice: Math.round(100000 * scenario.factor),
-      quoteValidUntil: dateFromToday(scenario.days, now), renewalDate: undefined }];
+      quoteValidUntil: dateFromToday(scenario.days, now) };
+    delete request.renewalDate;
+    return [request];
   });
 }

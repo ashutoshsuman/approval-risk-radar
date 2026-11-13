@@ -1,4 +1,4 @@
 # Demo testing controls
-- [ ] Add presets and shared in-memory request editing.
-- [ ] Add testing panel, reset, and console calculation table.
-- [ ] Verify scenario rules and browser flow.
+- [x] Add presets and shared in-memory request editing.
+- [x] Add testing panel, reset, and console calculation table.
+- [x] Verify scenario rules and browser flow.
