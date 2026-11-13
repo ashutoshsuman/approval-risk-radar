@@ -61,6 +61,7 @@ export function cancelRequest(request: PurchaseRequest): PurchaseRequest {
 
 export function simulateNewQuote(request: PurchaseRequest, price: number, now = new Date()): PurchaseRequest {
   if (request.status !== "Awaiting re-quote" || !Number.isFinite(price) || price < 0) return request;
-  return { ...request, latestVendorPrice: price, quoteValidUntil: dateFromToday(14, now), status: "Pending approval", hasReplacementQuote: true, stage: request.resumeStage ?? "Department head", resumeStage: undefined,
+  const { resumeStage, ...rest } = request;
+  return { ...rest, latestVendorPrice: price, quoteValidUntil: dateFromToday(14, now), status: "Pending approval", hasReplacementQuote: true, stage: resumeStage ?? "Department head",
     approvalHistory: [...(request.approvalHistory ?? []), "Updated vendor quote received"] };
 }

@@ -61,7 +61,9 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     resetSteps: () => {
       setRequests((rows) => rows.map((r) => {
         const o = defaults.find((d) => d.id === r.id);
-        return o ? { ...r, stage: o.stage, approver: o.approver, status: undefined, approvedAt: undefined, approvalHistory: undefined, resumeStage: undefined } : r;
+        if (!o) return r;
+        const { status: _s, approvedAt: _a, approvalHistory: _h, resumeStage: _r, ...rest } = r;
+        return { ...rest, stage: o.stage, approver: o.approver };
       }));
       resetDecisions();
     },
