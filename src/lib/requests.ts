@@ -12,7 +12,8 @@ export type PurchaseRequest = {
   renewalDate?: string;
   approvedAmount: number;
   latestVendorPrice: number;
-  status?: "Pending approval" | "Awaiting re-quote" | "Cancelled";
+  status?: "Pending approval" | "Awaiting re-quote" | "Cancelled" | `Approved at ${string}` | `Sent for full re-approval at ${string}`;
+  approvedAt?: number;
   approvalHistory?: string[];
   hasReplacementQuote?: boolean;
 };

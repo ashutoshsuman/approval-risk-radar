@@ -3,7 +3,7 @@ import type { PurchaseRequest } from "./requests";
 const DAY = 86_400_000;
 export const QUOTE_WINDOW_DAYS = 7;
 export const RENEWAL_WINDOW_DAYS = 14;
-export const QUICK_REAPPROVE_MAX_PCT = 10;
+export const QUICK_REAPPROVE_LIMIT = 10;
 /** Assumed vendor re-price if a quote lapses (fraction of latest vendor price). */
 export const REPRICE_ASSUMPTION = 0.1;
 
@@ -15,12 +15,19 @@ export function daysUntil(iso: string, now: Date = new Date()) {
 
 export function drift(r: Pick<PurchaseRequest, "approvedAmount" | "latestVendorPrice">) {
   const inr = Math.max(0, r.latestVendorPrice - r.approvedAmount);
-  const pct = r.approvedAmount > 0 ? (inr / r.approvedAmount) * 100 : 0;
+  const pct = r.approvedAmount > 0 ? (inr / r.approvedAmount) * 100 : inr > 0 ? Infinity : 0;
   return { inr, pct, dropped: r.latestVendorPrice < r.approvedAmount };
 }
 
 export function driftAction(pct: number): "quick" | "full" {
-  return pct <= QUICK_REAPPROVE_MAX_PCT ? "quick" : "full";
+  return pct <= QUICK_REAPPROVE_LIMIT ? "quick" : "full";
+}
+
+export function formatDriftPercent(pct: number) {
+  if (!Number.isFinite(pct)) return "No approved baseline";
+  let digits = Math.abs(pct - QUICK_REAPPROVE_LIMIT) < 0.1 ? 2 : 1;
+  while (pct > QUICK_REAPPROVE_LIMIT && Number(pct.toFixed(digits)) <= QUICK_REAPPROVE_LIMIT && digits < 15) digits++;
+  return `${pct.toFixed(digits)}%`;
 }
 
 export const formatINR = (n: number) =>
@@ -47,7 +54,7 @@ export function assessRisk(r: PurchaseRequest, now: Date = new Date()) {
   if (quoteExpired) reasons.push("Quote expired, re-quote needed");
   else if (quoteFlag) reasons.push(`Quote expires in ${plural(quoteDays)}`);
   if (renewalFlag && renewalDays !== null) reasons.push(renewalDays < 0 ? "Renewal lapsed" : `Renewal lapses in ${plural(renewalDays)}`);
-  if (d.inr > 0) reasons.push(`Vendor price +${formatINR(d.inr)} (${d.pct.toFixed(1)}%)`);
+  if (d.inr > 0) reasons.push(`Vendor price +${formatINR(d.inr)} (${formatDriftPercent(d.pct)})`);
   if (d.dropped) reasons.push("Price dropped");
   const confirmed = d.inr;
   const estimated = quoteFlag ? Math.round(r.latestVendorPrice * REPRICE_ASSUMPTION) : 0;

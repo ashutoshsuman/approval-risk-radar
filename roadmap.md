@@ -7,3 +7,7 @@
 - [x] Block expired approvals and add re-quote/cancel actions with retained history.
 - [x] Show unknown risk and shared request status across screens.
 - [x] Add simulated replacement quotes and verify rules and browser flow.
+
+# Price-based approval actions
+- [ ] Apply exact 10% approval rules across request and drift screens, recording latest amount and shared status.
+- [ ] Verify boundary rules, terminal states, and browser flows.

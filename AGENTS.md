@@ -32,3 +32,4 @@ use the editor.
 - Keep default requests and scenario definitions in one browser-safe data module; demo edits live in a root React provider so all screens share them without server state or persistence.
 - Compute and log demo risk exclusively through the existing pure risk functions; scenario values and edits must never depend on AI output.
 - Keep quote workflow transitions in browser-safe pure functions and request status/history in the demo provider; guard every approval surface so expired or cancelled requests cannot bypass re-quoting.
+- Use shared pure approval transitions and exact drift checks on every approval surface; store the final approved price separately from the comparison baseline so status, history, and risk remain consistent.
