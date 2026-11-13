@@ -14,12 +14,11 @@ export type PurchaseRequest = {
   latestVendorPrice: number;
 };
 
-const DAY = 86_400_000;
-function today() {
-  const d = new Date();
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+export function dateFromToday(n: number, now: Date = new Date()) {
+  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
-const inDays = (n: number) => new Date(today().getTime() + n * DAY).toISOString().slice(0, 10);
+const inDays = dateFromToday;
 
 export const requests: PurchaseRequest[] = [
   { id: "PR-1041", item: "Design tool licences – 12 seats", justification: "Product design team grows from 8 to 12; current licences are shared and block parallel work.", requester: "Ananya Rao", department: "Product Design", amount: 432000, approver: { name: "Vikram Mehta", role: "Head of Product" }, stage: "Department head", daysPending: 6, quoteValidUntil: inDays(1), renewalDate: inDays(10), approvedAmount: 432000, latestVendorPrice: 458000 },
@@ -33,3 +32,25 @@ export const requests: PurchaseRequest[] = [
 ];
 
 export const getRequest = (id: string) => requests.find((r) => r.id === id);
+
+export const scenarios = [
+  { id: "tomorrow", label: "Quote expires tomorrow", days: 1, factor: 1 },
+  { id: "rise15", label: "Price +15%", days: 30, factor: 1.15 },
+  { id: "rise5", label: "Price +5%", days: 30, factor: 1.05 },
+  { id: "none", label: "No risk", days: 30, factor: 1 },
+  { id: "boundary", label: "Exactly 10% rise", days: 30, factor: 1.1 },
+  { id: "dropped", label: "Price dropped", days: 30, factor: 0.9 },
+  { id: "expired", label: "Quote already expired", days: -1, factor: 1 },
+] as const;
+export type ScenarioId = typeof scenarios[number]["id"] | "all";
+
+export function scenarioRequests(id: ScenarioId, now: Date = new Date()): PurchaseRequest[] {
+  return scenarios.flatMap((scenario, index) => {
+    if (id !== "all" && scenario.id !== id) return [];
+    const source = requests[index];
+    if (!source) return [];
+    return [{ ...source, amount: 100000, approvedAmount: 100000,
+      latestVendorPrice: Math.round(100000 * scenario.factor),
+      quoteValidUntil: dateFromToday(scenario.days, now), renewalDate: undefined }];
+  });
+}

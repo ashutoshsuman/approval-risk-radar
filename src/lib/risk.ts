@@ -46,7 +46,7 @@ export function assessRisk(r: PurchaseRequest, now: Date = new Date()) {
   const reasons: string[] = [];
   if (quoteExpired) reasons.push("Quote expired, re-quote needed");
   else if (quoteFlag) reasons.push(`Quote expires in ${plural(quoteDays)}`);
-  if (renewalFlag) reasons.push(renewalDays! < 0 ? "Renewal lapsed" : `Renewal lapses in ${plural(renewalDays!)}`);
+  if (renewalFlag && renewalDays !== null) reasons.push(renewalDays < 0 ? "Renewal lapsed" : `Renewal lapses in ${plural(renewalDays)}`);
   if (d.inr > 0) reasons.push(`Vendor price +${formatINR(d.inr)} (${d.pct.toFixed(1)}%)`);
   if (d.dropped) reasons.push("Price dropped");
   const confirmed = d.inr;
