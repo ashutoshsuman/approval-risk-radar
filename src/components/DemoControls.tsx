@@ -27,6 +27,7 @@ export function DemoControls() {
           <label htmlFor="scenario" className="text-sm font-medium">Preset scenario</label>
           <Select value={demo.scenario} onValueChange={(value) => {
             demo.selectScenario(value as ScenarioId);
+            setOpen(false);
             void navigate({ to: "/" });
           }}>
             <SelectTrigger id="scenario"><SelectValue /></SelectTrigger>
@@ -37,7 +38,7 @@ export function DemoControls() {
             </SelectContent>
           </Select>
         </div>
-        <Button variant="outline" onClick={() => { demo.reset(); void navigate({ to: "/" }); }}>
+        <Button variant="outline" onClick={() => { demo.reset(); setOpen(false); void navigate({ to: "/" }); }}>
           <RotateCcw className="size-4" /> Reset to default data
         </Button>
       </DialogContent>
