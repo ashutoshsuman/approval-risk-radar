@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,6 +15,7 @@ import { generateBrief } from "@/lib/brief.functions";
 import { ReasonChip } from "@/components/ReasonChip";
 import { useDemo } from "@/lib/demo";
 import { DemoRequestEditor } from "@/components/DemoRequestEditor";
+import { canApprove } from "@/lib/request-workflow";
 
 export const Route = createFileRoute("/request/$id")({
   loader: ({ params }) => {
@@ -34,13 +35,14 @@ const fmtDate = (iso: string) => new Date(iso + "T00:00:00").toLocaleDateString(
 
 function Brief() {
   const { request: defaultRequest } = Route.useLoaderData();
-  const { requests } = useDemo();
+  const demo = useDemo();
+  const { requests } = demo;
   const r = requests.find((request) => request.id === defaultRequest.id) ?? defaultRequest;
   const risk = assessRisk(r);
   const decision = useDecisions()[r.id];
   const fn = useServerFn(generateBrief);
   const summary = useQuery({ queryKey: ["brief", r.id], queryFn: () => fn({ data: { id: r.id } }), staleTime: Infinity, retry: false });
-  const [dialog, setDialog] = useState<null | "ask" | "delegate">(null);
+  const [dialog, setDialog] = useState<null | "ask" | "delegate" | "cancel">(null);
   const [text, setText] = useState("");
 
   const fallback = `${r.department} is requesting ${r.item.toLowerCase()}. ${r.justification}`;
@@ -52,7 +54,10 @@ function Brief() {
   if (risk.dropped) consequences.push("The vendor price has dropped below the approved amount — no extra cost.");
   if (!consequences.length) consequences.push("No immediate deadline or price change. Waiting adds delay but no direct cost.");
 
-  const act = (label: string) => { setDecision(r.id, label); toast.success(`${r.id}: ${label}`); };
+  const cancelled = r.status === "Cancelled";
+  const awaiting = r.status === "Awaiting re-quote";
+  const approvalAllowed = canApprove(r);
+  const act = (label: string) => { setDecision(r.id, label); demo.recordHistory(r.id, label); toast.success(`${r.id}: ${label}`); };
 
   return (
     <div className="space-y-6">
@@ -63,12 +68,26 @@ function Brief() {
           <h1 className="mt-1 text-2xl font-semibold tracking-tight">{r.item}</h1>
           <div className="mt-2 flex flex-wrap gap-1">{risk.reasons.map((t) => <ReasonChip key={t} text={t} />)}</div>
         </div>
-        <div className="flex shrink-0 gap-2">
-          <Button variant="outline" onClick={() => { setText(""); setDialog("ask"); }} disabled={!!decision}>Ask a question</Button>
-          <Button variant="outline" onClick={() => { setText(""); setDialog("delegate"); }} disabled={!!decision}>Delegate</Button>
-          <Button onClick={() => act("Approved")} disabled={!!decision}>Approve</Button>
+        <div className="flex w-full flex-wrap items-start gap-2 sm:w-auto sm:max-w-md">
+          <Button variant="outline" onClick={() => { setText(""); setDialog("ask"); }} disabled={cancelled || (!risk.quoteExpired && !!decision)}>Ask a question</Button>
+          <Button variant="outline" onClick={() => { setText(""); setDialog("delegate"); }} disabled={cancelled || (!risk.quoteExpired && !!decision)}>Delegate</Button>
+          {risk.quoteExpired && <Button disabled={awaiting || cancelled} onClick={() => {
+            demo.requestRequote(r.id);
+            toast.success("Sent back to procurement for an updated vendor quote. Approval history is kept.");
+          }}>Request re-quote</Button>}
+          <div className="space-y-2">
+            <Button variant={risk.quoteExpired ? "outline" : "default"} onClick={() => { if (canApprove(r)) act("Approved"); }} disabled={!approvalAllowed || (!!decision && !r.hasReplacementQuote)}>Approve</Button>
+            {risk.quoteExpired && <p className="max-w-64 text-xs text-destructive">Can't approve an expired quote. Request a re-quote first.</p>}
+          </div>
+          {risk.quoteExpired && <Button variant="outline" disabled={cancelled} onClick={() => setDialog("cancel")}>Cancel request</Button>}
+          {r.hasReplacementQuote && approvalAllowed && <Button disabled={!!decision && (decision === "Approved" || decision.includes("re-approved") || decision === "Sent for full approval")} onClick={() => {
+            if (!canApprove(r)) return;
+            act(driftAction(risk.pct) === "quick" ? `Difference of ${formatINR(risk.inr)} re-approved` : "Sent for full approval");
+          }}>{driftAction(risk.pct) === "quick" ? "Quick re-approve the difference" : "Send for full approval"}</Button>}
         </div>
       </div>
+      {r.status && <div role="status" className="border-y py-3 text-sm font-medium">{r.status}</div>}
+      {awaiting && <p className="text-sm">Sent back to procurement for an updated vendor quote. Approval history is kept.</p>}
       {decision && <div className="rounded-md border bg-success px-4 py-2 text-sm text-success-foreground">{decision}</div>}
       <DemoRequestEditor request={r} />
 
@@ -90,9 +109,11 @@ function Brief() {
           <Row label="Approved amount" value={formatINR(r.approvedAmount)} mono />
           <Row label="Latest vendor price" value={formatINR(r.latestVendorPrice)} mono />
           <div className="space-y-1 border-b pb-2">
-            <div className="flex justify-between gap-4"><span className="text-muted-foreground">Money at risk</span><span className="font-mono font-medium">{formatINR(risk.moneyAtRisk)}</span></div>
+            <div className="flex justify-between gap-4"><span className="text-muted-foreground">Money at risk</span><span className="text-right font-mono font-medium">{risk.moneyAtRisk === null ? "Unknown until re-quote" : formatINR(risk.moneyAtRisk)}</span></div>
+            {!risk.quoteExpired && <>
             <div className="flex justify-between gap-4 pl-3 text-xs text-muted-foreground"><span>confirmed{risk.dropped ? " (price dropped)" : ""}</span><span className="font-mono">{formatINR(risk.confirmed)}</span></div>
             <div className="flex justify-between gap-4 pl-3 text-xs text-muted-foreground"><span>estimated (assumes {Math.round(REPRICE_ASSUMPTION * 100)}% re-price if the quote lapses)</span><span className="font-mono">{formatINR(risk.estimated)}</span></div>
+            </>}
           </div>
           <Row label="Quote valid until" value={risk.quoteExpired ? `${fmtDate(r.quoteValidUntil)} · expired` : `${fmtDate(r.quoteValidUntil)} · ${plural(risk.quoteDays)}`} />
           {r.renewalDate && risk.renewalDays !== null && <Row label="Renewal date" value={`${fmtDate(r.renewalDate)} · ${plural(risk.renewalDays)}`} />}
@@ -100,16 +121,22 @@ function Brief() {
           <Row label="Approver" value={`${r.approver.name}, ${r.approver.role}`} />
         </section>
       </div>
+      {!!r.approvalHistory?.length && <section className="space-y-2 border-t pt-4"><h2 className="text-sm font-medium">Approval history</h2><ul className="space-y-1 text-sm text-muted-foreground">{r.approvalHistory.map((entry, index) => <li key={index}>{entry}</li>)}</ul></section>}
 
       <Dialog open={dialog !== null} onOpenChange={(o) => !o && setDialog(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>{dialog === "ask" ? `Ask ${r.requester} a question` : "Delegate this approval"}</DialogTitle></DialogHeader>
-          {dialog === "ask"
+          <DialogHeader><DialogTitle>{dialog === "cancel" ? "Cancel this request?" : dialog === "ask" ? `Ask ${r.requester} a question` : "Delegate this approval"}</DialogTitle>{dialog === "cancel" && <DialogDescription>The request will be marked as cancelled. Approval history is kept.</DialogDescription>}</DialogHeader>
+          {dialog === "cancel" ? null : dialog === "ask"
             ? <Textarea value={text} onChange={(e) => setText(e.target.value)} placeholder="e.g. Can we start with fewer seats?" />
             : <Input value={text} onChange={(e) => setText(e.target.value)} placeholder="Colleague's name" />}
           <DialogFooter>
-            <Button disabled={!text.trim()} onClick={() => { act(dialog === "ask" ? `Question sent to ${r.requester}` : `Delegated to ${text.trim()}`); setDialog(null); }}>
-              {dialog === "ask" ? "Send question" : "Delegate"}
+            {dialog === "cancel" && <Button variant="outline" onClick={() => setDialog(null)}>Keep request</Button>}
+            <Button variant={dialog === "cancel" ? "destructive" : "default"} disabled={dialog !== "cancel" && !text.trim()} onClick={() => {
+              if (dialog === "cancel") { demo.cancelRequest(r.id); toast.success("Request cancelled. Approval history is kept."); }
+              else act(dialog === "ask" ? `Question sent to ${r.requester}` : `Delegated to ${text.trim()}`);
+              setDialog(null);
+            }}>
+              {dialog === "cancel" ? "Confirm cancellation" : dialog === "ask" ? "Send question" : "Delegate"}
             </Button>
           </DialogFooter>
         </DialogContent>

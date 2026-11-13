@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Switch } from "./ui/switch";
 import { scenarios, type ScenarioId } from "@/lib/requests";
 import { useDemo } from "@/lib/demo";
+import { SimulateQuote } from "./SimulateQuote";
 
 export function DemoControls() {
   const [open, setOpen] = useState(false);
@@ -41,6 +42,7 @@ export function DemoControls() {
         <Button variant="outline" onClick={() => { demo.reset(); setOpen(false); void navigate({ to: "/" }); }}>
           <RotateCcw className="size-4" /> Reset to default data
         </Button>
+        {demo.enabled && demo.requests.filter((r) => r.status === "Awaiting re-quote").map((r) => <SimulateQuote key={r.id} request={r} />)}
       </DialogContent>
     </Dialog>
   </>;
