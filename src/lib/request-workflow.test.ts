@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { scenarioRequests } from "./requests";
-import { canApprove, cancelRequest, requestRequote, simulateNewQuote } from "./request-workflow";
-import { assessRisk, driftAction, riskQueue } from "./risk";
+import { approveRequest, canApprove, canSubmitApproval, cancelRequest, requestRequote, sendForFullApproval, simulateNewQuote } from "./request-workflow";
+import { assessRisk, driftAction, drift, formatDriftPercent, QUICK_REAPPROVE_LIMIT, riskQueue } from "./risk";
 
 const now = new Date(2026, 10, 13);
 const expired = scenarioRequests("expired", now)[0];
@@ -48,5 +48,53 @@ describe("expired quote workflow", () => {
     expect(simulateNewQuote(request, 105000, now)).toBe(request);
     const awaiting = requestRequote(request, now);
     expect(simulateNewQuote(awaiting, -1, now)).toBe(awaiting);
+  });
+});
+
+describe("price-based approval", () => {
+  const valid = { ...request, quoteValidUntil: "2026-12-13", approvedAmount: 100000 };
+  it("uses a single 10 percent tolerance", () => {
+    expect(QUICK_REAPPROVE_LIMIT).toBe(10);
+  });
+  it("cannot approve or escalate expired quotes", () => {
+    expect(approveRequest(request, now)).toBe(request);
+    expect(sendForFullApproval({ ...request, latestVendorPrice: 115000 }, now).status).toBe(request.status);
+  });
+  it.each([100000, 90000])("records equal or lower latest price %i", (latestVendorPrice) => {
+    const next = approveRequest({ ...valid, latestVendorPrice }, now);
+    expect(next.approvedAt).toBe(latestVendorPrice);
+    expect(next.approvedAmount).toBe(100000);
+    expect(next.status).toBe(latestVendorPrice === 100000 ? "Approved at ₹1,00,000" : "Approved at ₹90,000");
+  });
+  it("approves the full latest amount at exactly 10 percent", () => {
+    const next = approveRequest({ ...valid, latestVendorPrice: 110000 }, now);
+    expect(next.approvedAt).toBe(110000);
+    expect(next.status).toBe("Approved at ₹1,10,000");
+    expect(next.approvalHistory?.at(-1)).toBe("Approved at ₹1,10,000");
+  });
+  it("blocks 10.01 percent and records full re-approval at latest amount", () => {
+    const input = { ...valid, latestVendorPrice: 110010 };
+    expect(canApprove(input, now)).toBe(false);
+    expect(approveRequest(input, now)).toBe(input);
+    const next = sendForFullApproval(input, now);
+    expect(next.status).toBe("Sent for full re-approval at ₹1,10,010");
+    expect(next.approvedAt).toBeUndefined();
+    expect(canSubmitApproval(next, now)).toBe(false);
+  });
+  it("makes approval terminal and retains its amount", () => {
+    const next = approveRequest({ ...valid, latestVendorPrice: 105000 }, now);
+    expect(canApprove(next, now)).toBe(false);
+    expect(approveRequest(next, now)).toBe(next);
+    expect(next.approvedAt).toBe(105000);
+  });
+  it("calculates exact percentage independent of display rounding", () => {
+    expect(drift({ ...valid, latestVendorPrice: 110010 }).pct).toBeCloseTo(10.01, 10);
+    expect(formatDriftPercent(10)).toBe("10.00%");
+    expect(formatDriftPercent(10.01)).toBe("10.01%");
+    expect(driftAction(10.00001)).toBe("full");
+    expect(Number(formatDriftPercent(10.00001).slice(0, -1))).toBeGreaterThan(10);
+  });
+  it("requires full approval for a positive price with no approved baseline", () => {
+    expect(canApprove({ ...valid, approvedAmount: 0, latestVendorPrice: 1 }, now)).toBe(false);
   });
 });
