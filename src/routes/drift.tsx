@@ -2,9 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useDemo } from "@/lib/demo";
-import { drift, driftAction, formatINR } from "@/lib/risk";
-import { setDecision, useDecisions } from "@/lib/decisions";
-import { canApprove } from "@/lib/request-workflow";
+import { drift, driftAction, formatINR, formatDriftPercent, QUICK_REAPPROVE_LIMIT } from "@/lib/risk";
+import { approvalLabel, canApprove, canSubmitApproval } from "@/lib/request-workflow";
 
 export const Route = createFileRoute("/drift")({
   head: () => ({
@@ -21,7 +20,6 @@ export const Route = createFileRoute("/drift")({
 });
 
 function Drift() {
-  const decisions = useDecisions();
   const demo = useDemo();
   const { requests } = demo;
   const rows = requests.map((r) => ({ r, d: drift(r) })).filter((x) => x.d.inr > 0).sort((a, b) => b.d.pct - a.d.pct);
@@ -29,12 +27,11 @@ function Drift() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Price drift</h1>
-        <p className="text-sm text-muted-foreground">Latest vendor price is higher than the approved amount. Up to 10% can be quickly re-approved.</p>
+        <p className="text-sm text-muted-foreground">Latest vendor price is higher than the approved amount. Up to {QUICK_REAPPROVE_LIMIT}% can be quickly re-approved.</p>
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid gap-4 md:grid-cols-2">
         {rows.map(({ r, d }) => {
           const action = driftAction(d.pct);
-          const done = decisions[r.id];
           return (
             <div key={r.id} className="rounded-md border bg-card p-5">
               <div className="flex items-start justify-between gap-4">
@@ -42,24 +39,25 @@ function Drift() {
                   <Link to="/request/$id" params={{ id: r.id }} className="font-medium hover:underline">{r.item}</Link>
                   <div className="font-mono text-xs text-muted-foreground">{r.id} · {r.department}</div>
                 </div>
-                <span className={`rounded px-2 py-0.5 font-mono text-xs font-medium ${action === "quick" ? "bg-warning text-warning-foreground" : "bg-destructive/10 text-destructive"}`}>+{d.pct.toFixed(1)}%</span>
+                <span className={`shrink-0 rounded px-2 py-0.5 font-mono text-xs font-medium ${action === "quick" ? "bg-warning text-warning-foreground" : "bg-destructive/10 text-destructive"}`}>+{formatDriftPercent(d.pct)}</span>
               </div>
               <dl className="mt-4 grid grid-cols-3 gap-3 text-sm">
                 <Cell label="Approved" value={formatINR(r.approvedAmount)} />
                 <Cell label="Latest vendor price" value={formatINR(r.latestVendorPrice)} />
                 <Cell label="Difference" value={`+${formatINR(d.inr)}`} strong />
               </dl>
-              <div className="mt-4 flex items-center justify-between border-t pt-4">
-                <span className="text-xs text-muted-foreground">{!canApprove(r) ? r.status ?? "Re-quote needed" : done ?? (action === "quick" ? "Within 10% threshold" : "Exceeds 10% threshold")}</span>
-                <Button size="sm" variant={action === "quick" ? "default" : "outline"} disabled={!canApprove(r) || !!done}
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+                <span className="text-xs text-muted-foreground">{r.status ?? (!canSubmitApproval(r) ? "Re-quote needed" : action === "quick" ? `Within ${QUICK_REAPPROVE_LIMIT}% threshold` : `Price rose more than ${QUICK_REAPPROVE_LIMIT}%; needs full re-approval at the new amount`)}</span>
+                {action === "full" && <Button size="sm" variant="outline" disabled>Approve</Button>}
+                <Button size="sm" className="h-auto min-h-8 whitespace-normal text-left" disabled={action === "quick" ? !canApprove(r) : !canSubmitApproval(r)}
                   onClick={() => {
-                    if (!canApprove(r)) return;
-                    const label = action === "quick" ? `Difference of ${formatINR(d.inr)} re-approved` : "Sent back for full approval";
-                    setDecision(r.id, label);
-                    demo.recordHistory(r.id, label);
+                    if (action === "quick" ? !canApprove(r) : !canSubmitApproval(r)) return;
+                    const label = action === "quick" ? `Approved at ${formatINR(r.latestVendorPrice)}` : `Sent for full re-approval at ${formatINR(r.latestVendorPrice)}`;
+                    if (action === "quick") demo.approveRequest(r.id);
+                    else demo.sendForFullApproval(r.id);
                     toast.success(`${r.id}: ${label}`);
                   }}>
-                  {action === "quick" ? "Quick re-approve the difference" : "Send back for full approval"}
+                  {action === "quick" ? approvalLabel(r) : "Send for full re-approval"}
                 </Button>
               </div>
             </div>

@@ -9,13 +9,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getRequest } from "@/lib/requests";
-import { assessRisk, driftAction, formatINR, plural, REPRICE_ASSUMPTION } from "@/lib/risk";
+import { assessRisk, driftAction, formatINR, formatDriftPercent, plural, QUICK_REAPPROVE_LIMIT, REPRICE_ASSUMPTION } from "@/lib/risk";
 import { setDecision, useDecisions } from "@/lib/decisions";
 import { generateBrief } from "@/lib/brief.functions";
 import { ReasonChip } from "@/components/ReasonChip";
 import { useDemo } from "@/lib/demo";
 import { DemoRequestEditor } from "@/components/DemoRequestEditor";
-import { canApprove } from "@/lib/request-workflow";
+import { approvalLabel, canApprove, canSubmitApproval } from "@/lib/request-workflow";
 
 export const Route = createFileRoute("/request/$id")({
   loader: ({ params }) => {
@@ -50,13 +50,15 @@ function Brief() {
   if (risk.quoteExpired) consequences.push(`The quote expired on ${fmtDate(r.quoteValidUntil)}. A new quote is needed before approval.`);
   else if (risk.quoteFlag) consequences.push(`The quote expires on ${fmtDate(r.quoteValidUntil)} (${plural(risk.quoteDays)}). After that the vendor can re-price.`);
   if (risk.renewalFlag && r.renewalDate && risk.renewalDays !== null) consequences.push(`The current service lapses on ${fmtDate(r.renewalDate)} (${plural(risk.renewalDays)}), interrupting access for ${r.department}.`);
-  if (risk.inr > 0) consequences.push(`The vendor price is already ${formatINR(risk.inr)} (${risk.pct.toFixed(1)}%) above the approved amount — ${driftAction(risk.pct) === "quick" ? "within the quick re-approval limit" : "needs full re-approval"}.`);
+  if (risk.inr > 0) consequences.push(`The vendor price is already ${formatINR(risk.inr)} (${formatDriftPercent(risk.pct)}) above the approved amount — ${driftAction(risk.pct) === "quick" ? "within the quick re-approval limit" : "needs full re-approval"}.`);
   if (risk.dropped) consequences.push("The vendor price has dropped below the approved amount — no extra cost.");
   if (!consequences.length) consequences.push("No immediate deadline or price change. Waiting adds delay but no direct cost.");
 
   const cancelled = r.status === "Cancelled";
   const awaiting = r.status === "Awaiting re-quote";
   const approvalAllowed = canApprove(r);
+  const approved = r.approvedAt !== undefined;
+  const needsFull = driftAction(risk.pct) === "full";
   const act = (label: string) => { setDecision(r.id, label); demo.recordHistory(r.id, label); toast.success(`${r.id}: ${label}`); };
 
   return (
@@ -69,26 +71,32 @@ function Brief() {
           <div className="mt-2 flex flex-wrap gap-1">{risk.reasons.map((t) => <ReasonChip key={t} text={t} />)}</div>
         </div>
         <div className="flex w-full flex-wrap items-start gap-2 sm:w-auto sm:max-w-md">
-          <Button variant="outline" onClick={() => { setText(""); setDialog("ask"); }} disabled={cancelled || (!risk.quoteExpired && !!decision)}>Ask a question</Button>
-          <Button variant="outline" onClick={() => { setText(""); setDialog("delegate"); }} disabled={cancelled || (!risk.quoteExpired && !!decision)}>Delegate</Button>
-          {risk.quoteExpired && <Button disabled={awaiting || cancelled} onClick={() => {
+          <Button variant="outline" onClick={() => { setText(""); setDialog("ask"); }} disabled={approved}>Ask a question</Button>
+          <Button variant="outline" onClick={() => { setText(""); setDialog("delegate"); }} disabled={approved}>Delegate</Button>
+          {risk.quoteExpired && <Button disabled={awaiting || cancelled || approved} onClick={() => {
             demo.requestRequote(r.id);
             toast.success("Sent back to procurement for an updated vendor quote. Approval history is kept.");
           }}>Request re-quote</Button>}
           <div className="space-y-2">
-            <Button variant={risk.quoteExpired ? "outline" : "default"} onClick={() => { if (canApprove(r) && !r.hasReplacementQuote) act("Approved"); }} disabled={!approvalAllowed || !!decision || r.hasReplacementQuote}>Approve</Button>
+            <Button className="h-auto min-h-9 whitespace-normal text-left" variant={risk.quoteExpired || needsFull ? "outline" : "default"} onClick={() => {
+              if (!canApprove(r)) return;
+              demo.approveRequest(r.id);
+              toast.success(`Approved at ${formatINR(r.latestVendorPrice)}`);
+            }} disabled={!approvalAllowed}>{risk.quoteExpired || needsFull ? "Approve" : approvalLabel(r)}</Button>
             {risk.quoteExpired && <p className="max-w-64 text-xs text-destructive">Can't approve an expired quote. Request a re-quote first.</p>}
+            {!risk.quoteExpired && needsFull && <p className="max-w-64 text-xs text-destructive">Price rose more than {QUICK_REAPPROVE_LIMIT}%; needs full re-approval at the new amount</p>}
           </div>
-          {risk.quoteExpired && <Button variant="outline" disabled={cancelled} onClick={() => setDialog("cancel")}>Cancel request</Button>}
-          {r.hasReplacementQuote && approvalAllowed && <Button disabled={!!decision} onClick={() => {
-            if (!canApprove(r)) return;
-            act(driftAction(risk.pct) === "quick" ? `Difference of ${formatINR(risk.inr)} re-approved` : "Sent for full approval");
-          }}>{driftAction(risk.pct) === "quick" ? "Quick re-approve the difference" : "Send for full approval"}</Button>}
+          {risk.quoteExpired && <Button variant="outline" disabled={cancelled || approved} onClick={() => setDialog("cancel")}>Cancel request</Button>}
+          {!risk.quoteExpired && needsFull && <Button disabled={!canSubmitApproval(r)} onClick={() => {
+            if (!canSubmitApproval(r)) return;
+            demo.sendForFullApproval(r.id);
+            toast.success(`Sent for full re-approval at ${formatINR(r.latestVendorPrice)}`);
+          }}>Send for full re-approval</Button>}
         </div>
       </div>
       {r.status && <div role="status" className="border-y py-3 text-sm font-medium">{r.status}</div>}
       {awaiting && <p className="text-sm">Sent back to procurement for an updated vendor quote. Approval history is kept.</p>}
-      {decision && <div className="rounded-md border bg-success px-4 py-2 text-sm text-success-foreground">{decision}</div>}
+      {decision && !approved && <div className="rounded-md border bg-success px-4 py-2 text-sm text-success-foreground">{decision}</div>}
       <DemoRequestEditor request={r} />
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -131,7 +139,8 @@ function Brief() {
             : <Input value={text} onChange={(e) => setText(e.target.value)} placeholder="Colleague's name" />}
           <DialogFooter>
             {dialog === "cancel" && <Button variant="outline" onClick={() => setDialog(null)}>Keep request</Button>}
-            <Button variant={dialog === "cancel" ? "destructive" : "default"} disabled={dialog !== "cancel" && !text.trim()} onClick={() => {
+            <Button variant={dialog === "cancel" ? "destructive" : "default"} disabled={approved || (dialog !== "cancel" && !text.trim())} onClick={() => {
+              if (approved) return;
               if (dialog === "cancel") { demo.cancelRequest(r.id); toast.success("Request cancelled. Approval history is kept."); }
               else act(dialog === "ask" ? `Question sent to ${r.requester}` : `Delegated to ${text.trim()}`);
               setDialog(null);
