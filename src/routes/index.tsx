@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { requests } from "@/lib/requests";
+import { useDemo } from "@/lib/demo";
 import { formatINR, GROUP_LABEL, plural, riskQueue } from "@/lib/risk";
 import { useDecisions } from "@/lib/decisions";
 import { ReasonChip } from "@/components/ReasonChip";
@@ -11,6 +11,8 @@ export const Route = createFileRoute("/")({
       { name: "description", content: "Pending purchase requests ranked by money at risk." },
       { property: "og:title", content: "Risk queue · Approval Risk Radar" },
       { property: "og:description", content: "Pending purchase requests ranked by money at risk." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: RiskQueue,
@@ -19,13 +21,14 @@ export const Route = createFileRoute("/")({
 function RiskQueue() {
   const navigate = useNavigate();
   const decisions = useDecisions();
+  const { requests } = useDemo();
   const queue = riskQueue(requests);
   const total = queue.reduce((s, q) => s + q.risk.moneyAtRisk, 0);
   const flagged = queue.filter((q) => q.risk.moneyAtRisk > 0).length;
 
   return (
     <div className="flex h-[calc(100vh-7.5rem)] min-h-[26rem] flex-col gap-6">
-      <div className="flex shrink-0 items-end justify-between gap-4">
+      <div className="flex shrink-0 flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Risk queue</h1>
           <p className="text-sm text-muted-foreground">Expired and expiring quotes first, then price increases, then the rest. Click a row for the approver brief.</p>

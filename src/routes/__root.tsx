@@ -14,6 +14,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AppHeader } from "../components/AppHeader";
 import { Toaster } from "../components/ui/sonner";
+import { DemoProvider } from "../lib/demo";
 
 function NotFoundComponent() {
   return (
@@ -126,12 +127,14 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <DemoProvider>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <AppHeader />
       <main className="mx-auto max-w-7xl px-8 py-8">
         <Outlet />
       </main>
       <Toaster />
+      </DemoProvider>
     </QueryClientProvider>
   );
 }
