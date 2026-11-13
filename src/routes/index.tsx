@@ -48,9 +48,11 @@ function RiskQueue() {
             {queue.map(({ request: r, risk }) => (
               <tr key={r.id} onClick={() => navigate({ to: "/request/$id", params: { id: r.id } })}
                 className="group cursor-pointer border-t hover:bg-accent/50">
-                <td className="sticky left-0 z-10 border-r bg-card px-4 py-3 group-hover:bg-accent/50">
-                  <div className="font-medium">{r.item}</div>
-                  <div className="font-mono text-xs text-muted-foreground">{r.id} · {r.requester}{decisions[r.id] ? ` · ${decisions[r.id]}` : ""}</div>
+                <td className="sticky left-0 z-10 border-r bg-card">
+                  <div className="px-4 py-3 group-hover:bg-accent/50">
+                    <div className="font-medium">{r.item}</div>
+                    <div className="font-mono text-xs text-muted-foreground">{r.id} · {r.requester}{decisions[r.id] ? ` · ${decisions[r.id]}` : ""}</div>
+                  </div>
                 </td>
                 <td className="px-4 py-3">{r.department}</td>
                 <td className="px-4 py-3"><div>{r.approver.name}</div><div className="text-xs text-muted-foreground">{r.approver.role}</div></td>
