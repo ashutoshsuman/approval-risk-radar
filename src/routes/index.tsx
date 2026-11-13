@@ -30,7 +30,7 @@ function RiskQueue() {
   const flagged = queue.filter((q) => q.risk.moneyAtRisk === null || q.risk.moneyAtRisk > 0).length;
 
   return (
-    <div className="flex min-h-[calc(100vh-7.5rem)] flex-col gap-6">
+    <div className="flex h-[calc(100vh-7.5rem)] min-h-[26rem] flex-col gap-6">
       <div className="flex shrink-0 flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Risk queue</h1>
@@ -78,7 +78,7 @@ function RiskQueue() {
       </div>
       {!!ready.length && <section className="shrink-0 space-y-2">
         <h2 className="text-sm font-medium">Ready for PO</h2>
-        <ul className="divide-y rounded-md border bg-card text-sm">{ready.map((r) => <li key={r.id}>
+        <ul className="max-h-32 divide-y overflow-auto rounded-md border bg-card text-sm">{ready.map((r) => <li key={r.id}>
           <Link to="/request/$id" params={{ id: r.id }} className="flex flex-wrap justify-between gap-2 px-4 py-2 hover:bg-muted">
             <span><span className="font-medium">{r.item}</span> <span className="font-mono text-xs text-muted-foreground">{r.id}</span></span>
             <span className="font-mono">Approved at {formatINR(r.approvedAt ?? r.latestVendorPrice)}</span>
