@@ -46,7 +46,19 @@ export function DemoControls() {
         <Button variant="outline" onClick={() => { demo.resetSteps(); setOpen(false); void navigate({ to: "/" }); }}>
           <RotateCcw className="size-4" /> Reset approval steps
         </Button>
-        {demo.enabled && demo.requests.filter((r) => r.status === "Awaiting re-quote").map((r) => <SimulateQuote key={r.id} request={r} />)}
+        {demo.enabled && awaitingQuotes.length > 0 && <div className="space-y-3 border-t pt-4">
+          <div className="space-y-1">
+            <h3 className="text-sm font-medium">Simulate a new vendor quote</h3>
+            <p className="text-xs text-muted-foreground">
+              {awaitingQuotes.length === 1 ? "This request is" : "These requests are"} waiting for an updated vendor quote.
+              Enter the new price to pretend it arrived — the quote gets 14 days of validity and the request returns to its approval step.
+            </p>
+          </div>
+          {awaitingQuotes.map((r) => <SimulateQuote key={r.id} request={r} onApplied={() => {
+            setOpen(false);
+            void navigate({ to: "/request/$id", params: { id: r.id } });
+          }} />)}
+        </div>}
       </DialogContent>
     </Dialog>
   </>;
