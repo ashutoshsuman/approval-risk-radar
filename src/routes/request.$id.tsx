@@ -15,7 +15,7 @@ import { generateBrief } from "@/lib/brief.functions";
 import { ReasonChip } from "@/components/ReasonChip";
 import { useDemo } from "@/lib/demo";
 import { DemoRequestEditor } from "@/components/DemoRequestEditor";
-import { approvalLabel, canApprove, canSubmitApproval } from "@/lib/request-workflow";
+import { approvalLabel, approvalMessage, APPROVAL_STEPS, AWAITING_REQUOTE_STEP, stepIndex, canApprove, canSubmitApproval } from "@/lib/request-workflow";
 
 export const Route = createFileRoute("/request/$id")({
   loader: ({ params }) => {
@@ -63,7 +63,8 @@ function Brief() {
 
   return (
     <div className="space-y-6">
-      <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">← Risk queue</Link>
+      <Button asChild variant="outline" size="sm" className="cursor-pointer"><Link to="/">← Risk queue</Link></Button>
+      <StepTracker stage={r.stage} />
       <div className="flex flex-wrap items-start justify-between gap-6">
         <div>
           <div className="font-mono text-xs text-muted-foreground">{r.id} · {r.stage} · pending {plural(r.daysPending)}</div>
@@ -80,8 +81,9 @@ function Brief() {
           <div className="space-y-2">
             <Button className="h-auto min-h-9 whitespace-normal text-left" variant={risk.quoteExpired || needsFull ? "outline" : "default"} onClick={() => {
               if (!canApprove(r)) return;
+              const message = approvalMessage(r);
               demo.approveRequest(r.id);
-              toast.success(`Approved at ${formatINR(r.latestVendorPrice)}`);
+              toast.success(message);
             }} disabled={!approvalAllowed}>{risk.quoteExpired || needsFull ? "Approve" : approvalLabel(r)}</Button>
             {risk.quoteExpired && <p className="max-w-64 text-xs text-destructive">Can't approve an expired quote. Request a re-quote first.</p>}
             {!risk.quoteExpired && needsFull && <p className="max-w-64 text-xs text-destructive">Price rose more than {QUICK_REAPPROVE_LIMIT}%; needs full re-approval at the new amount</p>}
@@ -90,7 +92,7 @@ function Brief() {
           {!risk.quoteExpired && needsFull && <Button disabled={!canSubmitApproval(r)} onClick={() => {
             if (!canSubmitApproval(r)) return;
             demo.sendForFullApproval(r.id);
-            toast.success(`Sent for full re-approval at ${formatINR(r.latestVendorPrice)}`);
+            toast.success(`Sent for full re-approval at ${formatINR(r.latestVendorPrice)}; restarted at Department head`);
           }}>Send for full re-approval</Button>}
         </div>
       </div>
@@ -160,5 +162,23 @@ function Row({ label, value, mono }: { label: string; value: string; mono?: bool
       <span className="text-muted-foreground">{label}</span>
       <span className={`text-right ${mono ? "font-mono" : ""}`}>{value}</span>
     </div>
+  );
+}
+
+function StepTracker({ stage }: { stage: string }) {
+  const current = stepIndex(stage);
+  return (
+    <ol aria-label="Approval journey" className="flex flex-wrap items-center gap-2 text-xs">
+      {APPROVAL_STEPS.map((step, i) => {
+        const state = i < current ? "done" : i === current ? "current" : "todo";
+        const label = i === 3 && stage === AWAITING_REQUOTE_STEP ? AWAITING_REQUOTE_STEP : step;
+        return <li key={step} className="flex items-center gap-2" aria-current={state === "current" ? "step" : undefined}>
+          {i > 0 && <span className={`h-px w-6 ${i <= current ? "bg-primary" : "bg-border"}`} />}
+          <span className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 ${state === "done" ? "border-primary bg-primary text-primary-foreground" : state === "current" ? "border-primary font-medium text-foreground ring-2 ring-primary/20" : "text-muted-foreground"}`}>
+            <span className="font-mono">{state === "done" ? "✓" : i + 1}</span>{label}
+          </span>
+        </li>;
+      })}
+    </ol>
   );
 }

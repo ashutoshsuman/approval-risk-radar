@@ -12,10 +12,33 @@ export type PurchaseRequest = {
   renewalDate?: string;
   approvedAmount: number;
   latestVendorPrice: number;
-  status?: "Pending approval" | "Awaiting re-quote" | "Cancelled" | `Approved at ${string}` | `Sent for full re-approval at ${string}`;
+  status?: "Pending approval" | "Awaiting re-quote" | "Cancelled" | "Ready for PO" | `Approved at ${string}` | `Approved by ${string}` | `Sent for full re-approval at ${string}`;
+  /** Approver for each approval step. */
+  approvers: Record<ApprovalStep, { name: string; role: string }>;
+  /** Step to resume after a re-quote. */
+  resumeStage?: string;
   approvedAt?: number;
   approvalHistory?: string[];
   hasReplacementQuote?: boolean;
+};
+
+export type ApprovalStep = "Department head" | "Finance" | "Procurement";
+
+const FINANCE = { name: "Meera Shah", role: "CFO" };
+const PROCUREMENT = { name: "Arjun Desai", role: "Procurement Manager" };
+const DEPARTMENT_HEADS: Record<string, { name: string; role: string }> = {
+  "Product Design": { name: "Vikram Mehta", role: "Head of Product" },
+  "Customer Success": { name: "Vikram Mehta", role: "Head of Product" },
+  IT: { name: "Sanjay Kapoor", role: "Head of IT" },
+  Engineering: { name: "Priya Nair", role: "VP Engineering" },
+  Facilities: { name: "Tara Menon", role: "Facilities Head" },
+  Security: { name: "Leena George", role: "Head of Security" },
+  Marketing: { name: "Rahul Verma", role: "CMO" },
+  Legal: { name: "Aditi Sen", role: "General Counsel" },
+};
+const withChain = (r: Omit<PurchaseRequest, "approvers">): PurchaseRequest => {
+  const approvers = { "Department head": DEPARTMENT_HEADS[r.department] ?? r.approver, Finance: FINANCE, Procurement: PROCUREMENT };
+  return { ...r, approvers, approver: approvers[r.stage as ApprovalStep] ?? r.approver };
 };
 
 export function dateFromToday(n: number, now: Date = new Date()) {
@@ -24,7 +47,7 @@ export function dateFromToday(n: number, now: Date = new Date()) {
 }
 const inDays = dateFromToday;
 
-export const requests: PurchaseRequest[] = [
+export const requests: PurchaseRequest[] = ([
   { id: "PR-1041", item: "Design tool licences – 12 seats", justification: "Product design team grows from 8 to 12; current licences are shared and block parallel work.", requester: "Ananya Rao", department: "Product Design", amount: 432000, approver: { name: "Vikram Mehta", role: "Head of Product" }, stage: "Department head", daysPending: 6, quoteValidUntil: inDays(1), renewalDate: inDays(10), approvedAmount: 432000, latestVendorPrice: 458000 },
   { id: "PR-1042", item: "Laptops – 20 units for new hires", justification: "Onboarding cohort starts next month; hardware lead time is two weeks.", requester: "Rohan Iyer", department: "IT", amount: 2400000, approver: { name: "Meera Shah", role: "CFO" }, stage: "Finance", daysPending: 9, quoteValidUntil: inDays(5), approvedAmount: 2400000, latestVendorPrice: 2760000 },
   { id: "PR-1043", item: "Cloud monitoring subscription – annual", justification: "Replaces three overlapping tools and covers production on-call alerting.", requester: "Kabir Singh", department: "Engineering", amount: 980000, approver: { name: "Priya Nair", role: "VP Engineering" }, stage: "Department head", daysPending: 3, quoteValidUntil: inDays(21), renewalDate: inDays(8), approvedAmount: 980000, latestVendorPrice: 980000 },
@@ -33,7 +56,7 @@ export const requests: PurchaseRequest[] = [
   { id: "PR-1046", item: "Security awareness training – 300 users", justification: "Mandatory annual training required for the upcoming compliance audit.", requester: "Dev Malhotra", department: "Security", amount: 270000, approver: { name: "Meera Shah", role: "CFO" }, stage: "Finance", daysPending: 7, quoteValidUntil: inDays(4), approvedAmount: 270000, latestVendorPrice: 270000 },
   { id: "PR-1047", item: "Trade show booth – regional expo", justification: "Lead generation for the enterprise segment; booth space is first-come.", requester: "Isha Banerjee", department: "Marketing", amount: 850000, approver: { name: "Rahul Verma", role: "CMO" }, stage: "Department head", daysPending: 2, quoteValidUntil: inDays(14), approvedAmount: 850000, latestVendorPrice: 1020000 },
   { id: "PR-1048", item: "Legal research database – renewal", justification: "Used daily by the contracts team; lapse would break access to case history.", requester: "Nikhil Joshi", department: "Legal", amount: 640000, approver: { name: "Meera Shah", role: "CFO" }, stage: "Finance", daysPending: 5, quoteValidUntil: inDays(30), renewalDate: inDays(12), approvedAmount: 640000, latestVendorPrice: 640000 },
-];
+] satisfies Omit<PurchaseRequest, "approvers">[]).map(withChain);
 
 export const getRequest = (id: string) => requests.find((r) => r.id === id);
 

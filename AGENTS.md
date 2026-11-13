@@ -33,3 +33,4 @@ use the editor.
 - Compute and log demo risk exclusively through the existing pure risk functions; scenario values and edits must never depend on AI output.
 - Keep quote workflow transitions in browser-safe pure functions and request status/history in the demo provider; guard every approval surface so expired or cancelled requests cannot bypass re-quoting.
 - Use shared pure approval transitions and exact drift checks on every approval surface; store the final approved price separately from the comparison baseline so status, history, and risk remain consistent.
+- Keep the approval chain (steps, per-step approvers, next-step moves, re-quote parking) in the pure workflow module; requests in the final "Ready for PO" step are filtered out before riskQueue so risk rules stay unchanged.

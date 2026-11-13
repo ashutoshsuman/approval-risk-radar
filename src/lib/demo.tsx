@@ -12,6 +12,7 @@ type DemoState = {
   selectScenario: (id: ScenarioId) => void;
   updateRequest: (id: string, patch: Partial<Pick<PurchaseRequest, "approvedAmount" | "latestVendorPrice" | "quoteValidUntil">>) => void;
   reset: () => void;
+  resetSteps: () => void;
   requestRequote: (id: string) => void;
   cancelRequest: (id: string) => void;
   simulateNewQuote: (id: string, price: number) => void;
@@ -57,6 +58,15 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       setRequests((rows) => rows.map((r) => r.id === id ? { ...r, ...patch } : r));
       resetDecisions();
     }, reset,
+    resetSteps: () => {
+      setRequests((rows) => rows.map((r) => {
+        const o = defaults.find((d) => d.id === r.id);
+        if (!o) return r;
+        const { status: _s, approvedAt: _a, approvalHistory: _h, resumeStage: _r, ...rest } = r;
+        return { ...rest, stage: o.stage, approver: o.approver };
+      }));
+      resetDecisions();
+    },
   }}>{children}</DemoContext.Provider>;
 }
 

@@ -5,7 +5,7 @@ import type { PurchaseRequest } from "./requests";
 const now = new Date(2026, 10, 12);
 const base: PurchaseRequest = {
   id: "X", item: "x", justification: "", requester: "", department: "", amount: 100000,
-  approver: { name: "", role: "" }, stage: "", daysPending: 1,
+  approver: { name: "", role: "" }, stage: "", approvers: { "Department head": { name: "", role: "" }, Finance: { name: "", role: "" }, Procurement: { name: "", role: "" } }, daysPending: 1,
   quoteValidUntil: "2026-12-30", approvedAmount: 100000, latestVendorPrice: 100000,
 };
 
@@ -29,6 +29,13 @@ describe("risk rules", () => {
   });
   it("expired quote is flagged", () => {
     expect(assessRisk({ ...base, quoteValidUntil: "2026-11-11" }, now).reasons).toContain("Quote expired, re-quote needed");
+  });
+  it("renewal within 14 days is Service at risk in the urgent group, ordered by days left", () => {
+    const r = assessRisk({ ...base, renewalDate: "2026-11-15" }, now);
+    expect(r.reasons).toContain("Service at risk");
+    expect([r.group, r.moneyAtRisk]).toEqual(["quote", 0]);
+    const q = riskQueue([{ ...base, id: "quote5", quoteValidUntil: "2026-11-17" }, { ...base, id: "renew3", renewalDate: "2026-11-15" }], now);
+    expect(q.map((x) => x.request.id)).toEqual(["renew3", "quote5"]);
   });
   it("pluralises days", () => {
     expect(plural(1)).toBe("1 day");

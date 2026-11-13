@@ -60,29 +60,43 @@ describe("price-based approval", () => {
     expect(approveRequest(request, now)).toBe(request);
     expect(sendForFullApproval({ ...request, latestVendorPrice: 115000 }, now).status).toBe(request.status);
   });
-  it.each([100000, 90000])("records equal or lower latest price %i", (latestVendorPrice) => {
-    const next = approveRequest({ ...valid, latestVendorPrice }, now);
+  const finalStep = { ...valid, stage: "Procurement", approver: valid.approvers.Procurement };
+  it.each([100000, 90000])("records equal or lower latest price %i at the final step", (latestVendorPrice) => {
+    const next = approveRequest({ ...finalStep, latestVendorPrice }, now);
     expect(next.approvedAt).toBe(latestVendorPrice);
     expect(next.approvedAmount).toBe(100000);
-    expect(next.status).toBe(latestVendorPrice === 100000 ? "Approved at ₹1,00,000" : "Approved at ₹90,000");
+    expect(next.status).toBe("Ready for PO");
   });
-  it("approves the full latest amount at exactly 10 percent", () => {
-    const next = approveRequest({ ...valid, latestVendorPrice: 110000 }, now);
-    expect(next.approvedAt).toBe(110000);
-    expect(next.status).toBe("Approved at ₹1,10,000");
-    expect(next.approvalHistory?.at(-1)).toBe("Approved at ₹1,10,000");
+  it("approves the full latest amount at exactly 10 percent and moves to the next step", () => {
+    const next = approveRequest({ ...valid, stage: "Department head", latestVendorPrice: 110000 }, now);
+    expect(next.stage).toBe("Finance");
+    expect(next.approver.name).toBe("Meera Shah");
+    expect(next.approvalHistory?.at(-1)).toBe(`Approved by ${valid.approvers["Department head"].name} at ₹1,10,000, moved to Finance`);
+  });
+  it("walks the chain Department head → Finance → Procurement → Ready for PO", () => {
+    let next = { ...valid, stage: "Department head" };
+    const stages = [];
+    for (let i = 0; i < 3; i++) { next = approveRequest(next, now); stages.push(next.stage); }
+    expect(stages).toEqual(["Finance", "Procurement", "Ready for PO"]);
+    expect(next.status).toBe("Ready for PO");
+  });
+  it("re-quote parks the step and a new quote resumes it", () => {
+    const awaiting = requestRequote({ ...request, stage: "Finance" }, now);
+    expect(awaiting.stage).toBe("Procurement: awaiting re-quote");
+    expect(simulateNewQuote(awaiting, 100000, now).stage).toBe("Finance");
   });
   it("blocks 10.01 percent and records full re-approval at latest amount", () => {
-    const input = { ...valid, latestVendorPrice: 110010 };
+    const input = { ...valid, stage: "Finance", latestVendorPrice: 110010 };
     expect(canApprove(input, now)).toBe(false);
     expect(approveRequest(input, now)).toBe(input);
     const next = sendForFullApproval(input, now);
     expect(next.status).toBe("Sent for full re-approval at ₹1,10,010");
     expect(next.approvedAt).toBeUndefined();
-    expect(canSubmitApproval(next, now)).toBe(false);
+    expect([next.stage, next.approvedAmount]).toEqual(["Department head", 110010]);
+    expect(canApprove(next, now)).toBe(true);
   });
   it("makes approval terminal and retains its amount", () => {
-    const next = approveRequest({ ...valid, latestVendorPrice: 105000 }, now);
+    const next = approveRequest({ ...finalStep, latestVendorPrice: 105000 }, now);
     expect(canApprove(next, now)).toBe(false);
     expect(approveRequest(next, now)).toBe(next);
     expect(next.approvedAt).toBe(105000);
