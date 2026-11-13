@@ -24,9 +24,9 @@ export const generateBrief = createServerFn({ method: "POST" })
       const result = streamText({
         model: provider.responses("openai/gpt-6-astra"),
         system:
-          "You write approver briefs for a procurement tool. Write 2-3 plain sentences explaining what is being bought and why it matters to the business. NEVER include any numbers, digits, amounts, percentages, dates or durations — those are shown separately. No markdown.",
+          "You write approver briefs for a procurement tool. In 2-3 plain sentences, restate what is being bought and why, using ONLY the facts in the Justification. Do not add any reasons, benefits, deadlines, risks or consequences that are not explicitly stated there. NEVER include any numbers, digits, amounts, percentages, dates or durations. No markdown.",
         messages: [
-          { role: "user", content: `Item: ${r.item}\nDepartment: ${r.department}\nRequester: ${r.requester}\nJustification: ${r.justification}` },
+          { role: "user", content: `Item: ${r.item}\nDepartment: ${r.department}\nJustification: ${r.justification}` },
         ],
         providerOptions: {
           openai: { forceReasoning: true, reasoningEffort: "low", reasoningSummary: "auto", store: false, include: ["reasoning.encrypted_content"] },

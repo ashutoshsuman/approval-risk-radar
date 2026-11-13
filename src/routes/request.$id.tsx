@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getRequest } from "@/lib/requests";
-import { assessRisk, driftAction, formatINR } from "@/lib/risk";
+import { assessRisk, driftAction, formatINR, plural, REPRICE_ASSUMPTION } from "@/lib/risk";
 import { setDecision, useDecisions } from "@/lib/decisions";
 import { generateBrief } from "@/lib/brief.functions";
 import { ReasonChip } from "@/components/ReasonChip";
@@ -41,9 +41,11 @@ function Brief() {
 
   const fallback = `${r.department} is requesting ${r.item.toLowerCase()}. ${r.justification}`;
   const consequences: string[] = [];
-  if (risk.quoteFlag) consequences.push(`The quote expires on ${fmtDate(r.quoteValidUntil)} (${risk.quoteDays} days). After that the vendor can re-price.`);
-  if (risk.renewalFlag) consequences.push(`The current service lapses on ${fmtDate(r.renewalDate!)} (${risk.renewalDays} days), interrupting access for ${r.department}.`);
+  if (risk.quoteExpired) consequences.push(`The quote expired on ${fmtDate(r.quoteValidUntil)}. A new quote is needed before approval.`);
+  else if (risk.quoteFlag) consequences.push(`The quote expires on ${fmtDate(r.quoteValidUntil)} (${plural(risk.quoteDays)}). After that the vendor can re-price.`);
+  if (risk.renewalFlag) consequences.push(`The current service lapses on ${fmtDate(r.renewalDate!)} (${plural(risk.renewalDays!)}), interrupting access for ${r.department}.`);
   if (risk.inr > 0) consequences.push(`The vendor price is already ${formatINR(risk.inr)} (${risk.pct.toFixed(1)}%) above the approved amount — ${driftAction(risk.pct) === "quick" ? "within the quick re-approval limit" : "needs full re-approval"}.`);
+  if (risk.dropped) consequences.push("The vendor price has dropped below the approved amount — no extra cost.");
   if (!consequences.length) consequences.push("No immediate deadline or price change. Waiting adds delay but no direct cost.");
 
   const act = (label: string) => { setDecision(r.id, label); toast.success(`${r.id}: ${label}`); };
@@ -53,7 +55,7 @@ function Brief() {
       <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">← Risk queue</Link>
       <div className="flex items-start justify-between gap-6">
         <div>
-          <div className="font-mono text-xs text-muted-foreground">{r.id} · {r.stage} · pending {r.daysPending} days</div>
+          <div className="font-mono text-xs text-muted-foreground">{r.id} · {r.stage} · pending {plural(r.daysPending)}</div>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight">{r.item}</h1>
           <div className="mt-2 flex flex-wrap gap-1">{risk.reasons.map((t) => <ReasonChip key={t} text={t} />)}</div>
         </div>
@@ -80,12 +82,15 @@ function Brief() {
           <ul className="list-disc space-y-1 pl-5 text-sm">{consequences.map((c) => <li key={c}>{c}</li>)}</ul>
         </section>
         <section className="space-y-3 rounded-md border bg-card p-6 text-sm">
-          <Row label="Amount" value={formatINR(r.amount)} mono />
           <Row label="Approved amount" value={formatINR(r.approvedAmount)} mono />
           <Row label="Latest vendor price" value={formatINR(r.latestVendorPrice)} mono />
-          <Row label="Money at risk" value={formatINR(risk.moneyAtRisk)} mono />
-          <Row label="Quote valid until" value={`${fmtDate(r.quoteValidUntil)} · ${risk.quoteDays}d`} />
-          {r.renewalDate && <Row label="Renewal date" value={`${fmtDate(r.renewalDate)} · ${risk.renewalDays}d`} />}
+          <div className="space-y-1 border-b pb-2">
+            <div className="flex justify-between gap-4"><span className="text-muted-foreground">Money at risk</span><span className="font-mono font-medium">{formatINR(risk.moneyAtRisk)}</span></div>
+            <div className="flex justify-between gap-4 pl-3 text-xs text-muted-foreground"><span>confirmed{risk.dropped ? " (price dropped)" : ""}</span><span className="font-mono">{formatINR(risk.confirmed)}</span></div>
+            <div className="flex justify-between gap-4 pl-3 text-xs text-muted-foreground"><span>estimated (assumes {Math.round(REPRICE_ASSUMPTION * 100)}% re-price if the quote lapses)</span><span className="font-mono">{formatINR(risk.estimated)}</span></div>
+          </div>
+          <Row label="Quote valid until" value={risk.quoteExpired ? `${fmtDate(r.quoteValidUntil)} · expired` : `${fmtDate(r.quoteValidUntil)} · ${plural(risk.quoteDays)}`} />
+          {r.renewalDate && <Row label="Renewal date" value={`${fmtDate(r.renewalDate)} · ${plural(risk.renewalDays!)}`} />}
           <Row label="Requester" value={`${r.requester}, ${r.department}`} />
           <Row label="Approver" value={`${r.approver.name}, ${r.approver.role}`} />
         </section>
