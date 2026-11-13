@@ -4,6 +4,6 @@
 - [x] Verify scenario rules and browser flow.
 
 # Expired quote workflow
-- [ ] Block expired approvals and add re-quote/cancel actions with retained history.
-- [ ] Show unknown risk and shared request status across screens.
-- [ ] Add simulated replacement quotes and verify rules and browser flow.
+- [x] Block expired approvals and add re-quote/cancel actions with retained history.
+- [x] Show unknown risk and shared request status across screens.
+- [x] Add simulated replacement quotes and verify rules and browser flow.
