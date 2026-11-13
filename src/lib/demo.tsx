@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { requests as defaults, scenarioRequests, type PurchaseRequest, type ScenarioId } from "./requests";
 import { riskQueue } from "./risk";
-import { resetDecisions } from "./decisions";
+import { clearDecision, resetDecisions } from "./decisions";
 import { cancelRequest, requestRequote, simulateNewQuote } from "./request-workflow";
 
 type DemoState = {
@@ -39,7 +39,11 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   return <DemoContext.Provider value={{ requests, enabled, scenario, setEnabled,
     requestRequote: (id) => setRequests((rows) => rows.map((r) => r.id === id ? requestRequote(r) : r)),
     cancelRequest: (id) => setRequests((rows) => rows.map((r) => r.id === id ? cancelRequest(r) : r)),
-    simulateNewQuote: (id, price) => { if (enabled) setRequests((rows) => rows.map((r) => r.id === id ? simulateNewQuote(r, price) : r)); },
+    simulateNewQuote: (id, price) => {
+      if (!enabled || !requests.some((r) => r.id === id && r.status === "Awaiting re-quote") || !Number.isFinite(price) || price < 0) return;
+      clearDecision(id);
+      setRequests((rows) => rows.map((r) => r.id === id ? simulateNewQuote(r, price) : r));
+    },
     recordHistory: (id, label) => setRequests((rows) => rows.map((r) => r.id === id ? { ...r, approvalHistory: [...(r.approvalHistory ?? []), label] } : r)),
     selectScenario: (id) => {
       setRequests(scenarioRequests(id)); setScenario(id); setEnabled(true); resetDecisions();

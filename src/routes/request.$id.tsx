@@ -76,11 +76,11 @@ function Brief() {
             toast.success("Sent back to procurement for an updated vendor quote. Approval history is kept.");
           }}>Request re-quote</Button>}
           <div className="space-y-2">
-            <Button variant={risk.quoteExpired ? "outline" : "default"} onClick={() => { if (canApprove(r)) act("Approved"); }} disabled={!approvalAllowed || (!!decision && !r.hasReplacementQuote)}>Approve</Button>
+            <Button variant={risk.quoteExpired ? "outline" : "default"} onClick={() => { if (canApprove(r) && !r.hasReplacementQuote) act("Approved"); }} disabled={!approvalAllowed || !!decision || r.hasReplacementQuote}>Approve</Button>
             {risk.quoteExpired && <p className="max-w-64 text-xs text-destructive">Can't approve an expired quote. Request a re-quote first.</p>}
           </div>
           {risk.quoteExpired && <Button variant="outline" disabled={cancelled} onClick={() => setDialog("cancel")}>Cancel request</Button>}
-          {r.hasReplacementQuote && approvalAllowed && <Button disabled={!!decision && (decision === "Approved" || decision.includes("re-approved") || decision === "Sent for full approval")} onClick={() => {
+          {r.hasReplacementQuote && approvalAllowed && <Button disabled={!!decision} onClick={() => {
             if (!canApprove(r)) return;
             act(driftAction(risk.pct) === "quick" ? `Difference of ${formatINR(risk.inr)} re-approved` : "Sent for full approval");
           }}>{driftAction(risk.pct) === "quick" ? "Quick re-approve the difference" : "Send for full approval"}</Button>}

@@ -51,7 +51,7 @@ function Drift() {
               </dl>
               <div className="mt-4 flex items-center justify-between border-t pt-4">
                 <span className="text-xs text-muted-foreground">{!canApprove(r) ? r.status ?? "Re-quote needed" : done ?? (action === "quick" ? "Within 10% threshold" : "Exceeds 10% threshold")}</span>
-                <Button size="sm" variant={action === "quick" ? "default" : "outline"} disabled={!canApprove(r) || (!!done && !r.hasReplacementQuote)}
+                <Button size="sm" variant={action === "quick" ? "default" : "outline"} disabled={!canApprove(r) || !!done}
                   onClick={() => {
                     if (!canApprove(r)) return;
                     const label = action === "quick" ? `Difference of ${formatINR(d.inr)} re-approved` : "Sent back for full approval";
