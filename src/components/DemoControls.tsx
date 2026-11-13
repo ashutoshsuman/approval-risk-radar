@@ -21,9 +21,12 @@ export function DemoControls() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto">
         <DialogHeader><DialogTitle>Test scenarios</DialogTitle></DialogHeader>
-        <div className="flex items-center justify-between gap-4">
-          <label htmlFor="demo-mode" className="text-sm font-medium">Demo mode · Testing only</label>
-          <Switch id="demo-mode" checked={demo.enabled} onCheckedChange={demo.setEnabled} />
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-1">
+            <label htmlFor="demo-mode" className="text-sm font-medium">Demo mode · Testing only</label>
+            <p className="text-xs text-muted-foreground">Turn on to edit prices and quote dates on each request page and to simulate new vendor quotes. Picking a preset scenario turns it on for you.</p>
+          </div>
+          <Switch id="demo-mode" className="mt-0.5 shrink-0" checked={demo.enabled} onCheckedChange={demo.setEnabled} />
         </div>
         <div className="space-y-2">
           <label htmlFor="scenario" className="text-sm font-medium">Preset scenario</label>
