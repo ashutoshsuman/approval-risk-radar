@@ -9,5 +9,5 @@
 - [x] Add simulated replacement quotes and verify rules and browser flow.
 
 # Price-based approval actions
-- [ ] Apply exact 10% approval rules across request and drift screens, recording latest amount and shared status.
-- [ ] Verify boundary rules, terminal states, and browser flows.
+- [x] Apply exact 10% approval rules across request and drift screens, recording latest amount and shared status.
+- [x] Verify boundary rules, terminal states, and browser flows.
