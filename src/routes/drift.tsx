@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { requests } from "@/lib/requests";
+import { useDemo } from "@/lib/demo";
 import { drift, driftAction, formatINR } from "@/lib/risk";
 import { setDecision, useDecisions } from "@/lib/decisions";
 
@@ -12,6 +12,8 @@ export const Route = createFileRoute("/drift")({
       { name: "description", content: "Requests where the vendor price rose above the approved amount." },
       { property: "og:title", content: "Price drift · Approval Risk Radar" },
       { property: "og:description", content: "Requests where the vendor price rose above the approved amount." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: Drift,
@@ -19,6 +21,7 @@ export const Route = createFileRoute("/drift")({
 
 function Drift() {
   const decisions = useDecisions();
+  const { requests } = useDemo();
   const rows = requests.map((r) => ({ r, d: drift(r) })).filter((x) => x.d.inr > 0).sort((a, b) => b.d.pct - a.d.pct);
   return (
     <div className="space-y-6">
@@ -59,6 +62,7 @@ function Drift() {
           );
         })}
       </div>
+      {!rows.length && <p className="text-sm text-muted-foreground">No requests with price increases.</p>}
     </div>
   );
 }

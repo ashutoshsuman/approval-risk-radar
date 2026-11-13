@@ -28,3 +28,6 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+
+- Keep default requests and scenario definitions in one browser-safe data module; demo edits live in a root React provider so all screens share them without server state or persistence.
+- Compute and log demo risk exclusively through the existing pure risk functions; scenario values and edits must never depend on AI output.

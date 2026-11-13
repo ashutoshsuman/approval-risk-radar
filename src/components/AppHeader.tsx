@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { DemoControls } from "./DemoControls";
 
 const nav = [
   { to: "/", label: "Risk queue" },
@@ -8,8 +9,8 @@ const nav = [
 export function AppHeader() {
   return (
     <header className="border-b bg-card">
-      <div className="mx-auto flex h-14 max-w-7xl items-center gap-8 px-8">
-        <div className="flex items-center gap-2">
+      <div className="mx-auto flex min-h-14 max-w-7xl flex-wrap items-center gap-3 px-8 py-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="grid h-7 w-7 place-items-center rounded bg-primary text-xs font-semibold text-primary-foreground">AR</span>
           <span className="font-semibold tracking-tight">Approval Risk Radar</span>
           <span className="rounded border px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">Concept · mock data</span>
@@ -23,6 +24,7 @@ export function AppHeader() {
             </Link>
           ))}
         </nav>
+        <DemoControls />
       </div>
     </header>
   );
