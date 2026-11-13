@@ -13,6 +13,7 @@ export function DemoControls() {
   const [open, setOpen] = useState(false);
   const demo = useDemo();
   const navigate = useNavigate();
+  const awaitingQuotes = demo.requests.filter((r) => r.status === "Awaiting re-quote");
   return <>
     <Button variant="outline" size="sm" className="ml-auto shrink-0" onClick={() => setOpen(true)}>
       <FlaskConical className="size-4" /> Demo controls <span className="text-xs text-muted-foreground">· Testing tool</span>
