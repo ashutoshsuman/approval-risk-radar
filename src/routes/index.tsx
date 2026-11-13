@@ -23,8 +23,9 @@ function RiskQueue() {
   const decisions = useDecisions();
   const { requests } = useDemo();
   const queue = riskQueue(requests);
-  const total = queue.reduce((s, q) => s + q.risk.moneyAtRisk, 0);
-  const flagged = queue.filter((q) => q.risk.moneyAtRisk > 0).length;
+  const total = queue.reduce((s, q) => s + (q.risk.moneyAtRisk ?? 0), 0);
+  const unknown = queue.filter((q) => q.risk.moneyAtRisk === null).length;
+  const flagged = queue.filter((q) => q.risk.moneyAtRisk === null || q.risk.moneyAtRisk > 0).length;
 
   return (
     <div className="flex h-[calc(100vh-7.5rem)] min-h-[26rem] flex-col gap-6">
@@ -34,7 +35,7 @@ function RiskQueue() {
           <p className="text-sm text-muted-foreground">Expired and expiring quotes first, then price increases, then the rest. Click a row for the approver brief.</p>
         </div>
         <div className="flex gap-3">
-          <Stat label="Money at risk" value={formatINR(total)} />
+          <Stat label="Money at risk" value={unknown ? `${formatINR(total)} + ${unknown} unknown` : formatINR(total)} />
           <Stat label="Requests at risk" value={`${flagged} of ${queue.length}`} />
         </div>
       </div>
@@ -54,7 +55,7 @@ function RiskQueue() {
                 <td className="sticky left-0 z-10 border-r bg-card">
                   <div className="px-4 py-3 group-hover:bg-accent/50">
                     <div className="font-medium">{r.item}</div>
-                    <div className="font-mono text-xs text-muted-foreground">{r.id} · {r.requester}{decisions[r.id] ? ` · ${decisions[r.id]}` : ""}</div>
+                    <div className="font-mono text-xs text-muted-foreground">{r.id} · {r.requester}{r.status ? ` · ${r.status}` : decisions[r.id] ? ` · ${decisions[r.id]}` : ""}</div>
                   </div>
                 </td>
                 <td className="px-4 py-3"><span className={`whitespace-nowrap rounded border px-1.5 py-0.5 text-xs ${risk.group === "expired" ? "border-destructive text-destructive" : "text-muted-foreground"}`}>{GROUP_LABEL[risk.group]}</span></td>
@@ -62,7 +63,7 @@ function RiskQueue() {
                 <td className="px-4 py-3"><div>{r.approver.name}</div><div className="text-xs text-muted-foreground">{r.approver.role}</div></td>
                 <td className="px-4 py-3">{r.stage}</td>
                 <td className="px-4 py-3 text-right font-mono">{plural(r.daysPending)}</td>
-                <td className={`px-4 py-3 text-right font-mono font-medium ${risk.moneyAtRisk ? "text-destructive" : "text-muted-foreground"}`}>{formatINR(risk.moneyAtRisk)}</td>
+                <td className={`px-4 py-3 text-right font-mono font-medium ${risk.quoteExpired || risk.moneyAtRisk ? "text-destructive" : "text-muted-foreground"}`}>{risk.moneyAtRisk === null ? "Unknown until re-quote" : formatINR(risk.moneyAtRisk)}</td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-1">
                     {risk.reasons.length ? risk.reasons.map((t) => <ReasonChip key={t} text={t} />) : <span className="text-xs text-muted-foreground">No risk detected</span>}

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useDemo } from "@/lib/demo";
 import { drift, driftAction, formatINR } from "@/lib/risk";
 import { setDecision, useDecisions } from "@/lib/decisions";
+import { canApprove } from "@/lib/request-workflow";
 
 export const Route = createFileRoute("/drift")({
   head: () => ({
@@ -21,7 +22,8 @@ export const Route = createFileRoute("/drift")({
 
 function Drift() {
   const decisions = useDecisions();
-  const { requests } = useDemo();
+  const demo = useDemo();
+  const { requests } = demo;
   const rows = requests.map((r) => ({ r, d: drift(r) })).filter((x) => x.d.inr > 0).sort((a, b) => b.d.pct - a.d.pct);
   return (
     <div className="space-y-6">
@@ -48,11 +50,13 @@ function Drift() {
                 <Cell label="Difference" value={`+${formatINR(d.inr)}`} strong />
               </dl>
               <div className="mt-4 flex items-center justify-between border-t pt-4">
-                <span className="text-xs text-muted-foreground">{done ?? (action === "quick" ? "Within 10% threshold" : "Exceeds 10% threshold")}</span>
-                <Button size="sm" variant={action === "quick" ? "default" : "outline"} disabled={!!done}
+                <span className="text-xs text-muted-foreground">{!canApprove(r) ? r.status ?? "Re-quote needed" : done ?? (action === "quick" ? "Within 10% threshold" : "Exceeds 10% threshold")}</span>
+                <Button size="sm" variant={action === "quick" ? "default" : "outline"} disabled={!canApprove(r) || !!done}
                   onClick={() => {
+                    if (!canApprove(r)) return;
                     const label = action === "quick" ? `Difference of ${formatINR(d.inr)} re-approved` : "Sent back for full approval";
                     setDecision(r.id, label);
+                    demo.recordHistory(r.id, label);
                     toast.success(`${r.id}: ${label}`);
                   }}>
                   {action === "quick" ? "Quick re-approve the difference" : "Send back for full approval"}
